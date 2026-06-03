@@ -24,7 +24,7 @@ def main():
     print("\nSTEP 3: TRAIN MODELS")
     results_df = run_experiments(train_df, test_df)
 
-    # Step 4: Qualitative analysis (Bilgin's part)
+    # Step 4: Qualitative analysis
     print("\nSTEP 4: QUALITATIVE ANALYSIS")
     analyze_features(train_df, test_df)
 
