@@ -1,4 +1,8 @@
 import pandas as pd
+import numpy as np
+import torch
+from datasets import Dataset
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import StandardScaler
@@ -159,3 +163,94 @@ def run_spacy_experiments(train_df, test_df):
     print("  - No lexical content (words) used - pure stylometric analysis")
     
     return spacy_df
+
+
+def run_transformer_experiments(train_df, test_df, text_column="text"):
+    """
+    Fine-tune distilbert-base-uncased using Hugging Face transformers and datasets.
+    """
+    model_name = "distilbert-base-uncased"
+    print(f"\n" + "=" * 80)
+    print(f"TRANSFORMER EXPERIMENTS: {model_name} on {text_column}")
+    print("=" * 80)
+    
+    # Check for GPU
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
+    
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    
+    unique_labels = train_df["label"].unique()
+    label2id = {str(label): i for i, label in enumerate(sorted(unique_labels))}
+    id2label = {i: str(label) for label, i in label2id.items()}
+    num_labels = len(unique_labels)
+    
+    train_dataset = Dataset.from_pandas(train_df[[text_column, "label"]])
+    test_dataset = Dataset.from_pandas(test_df[[text_column, "label"]])
+    
+    def tokenize_function(examples):
+        tokens = tokenizer(examples[text_column], padding="max_length", truncation=True, max_length=128)
+        tokens["labels"] = [label2id[str(label)] for label in examples["label"]]
+        return tokens
+        
+    train_dataset = train_dataset.map(tokenize_function, batched=True)
+    test_dataset = test_dataset.map(tokenize_function, batched=True)
+    
+    model = AutoModelForSequenceClassification.from_pretrained(
+        model_name, num_labels=num_labels, label2id=label2id, id2label=id2label
+    )
+    
+    def compute_metrics(eval_pred):
+        logits, labels = eval_pred
+        predictions = np.argmax(logits, axis=-1)
+        acc = accuracy_score(labels, predictions)
+        f1 = f1_score(labels, predictions, average="macro")
+        return {"accuracy": acc, "macro_f1": f1}
+        
+    training_args = TrainingArguments(
+        output_dir=f"./results_transformer_{text_column}",
+        evaluation_strategy="epoch",
+        save_strategy="epoch",
+        learning_rate=2e-5,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        num_train_epochs=3,
+        weight_decay=0.01,
+        load_best_model_at_end=True,
+        logging_steps=50,
+        report_to="none"
+    )
+    
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=test_dataset,
+        compute_metrics=compute_metrics,
+    )
+    
+    print(f"\nTraining model on {text_column} for 3 epochs...")
+    trainer.train()
+    
+    print(f"\nEvaluating model on {text_column}...")
+    eval_results = trainer.evaluate()
+    
+    acc = eval_results["eval_accuracy"]
+    f1 = eval_results["eval_macro_f1"]
+    
+    print(f"Results for {text_column} -> Accuracy: {acc:.4f}, Macro-F1: {f1:.4f}")
+    
+    settings_map = {
+        "text": "original",
+        "text_leakage_masked": "leakage_masked",
+        "text_noun_masked": "noun_masked"
+    }
+    setting_name = settings_map.get(text_column, text_column)
+    
+    return {
+        "model": "distilbert-base-uncased",
+        "setting": setting_name,
+        "features": "transformer",
+        "accuracy": acc,
+        "macro_f1": f1
+    }

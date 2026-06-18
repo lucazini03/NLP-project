@@ -3,3 +3,6 @@ numpy>=1.21.0
 scikit-learn>=1.0.0
 spacy>=3.0.0
 tqdm>=4.62.0
+torch
+transformers
+datasets
