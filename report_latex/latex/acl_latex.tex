@@ -1,0 +1,282 @@
+\documentclass[11pt]{article}
+
+% Generate the final version (non-anonymous)
+\usepackage[final]{acl}
+
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\pagestyle{plain}
+
+\title{Unmasking Style: Evaluating Text Distortion for Data Depollution in Reddit Author Profiling}
+
+\author{
+  Luca Corradini Zini
+}
+
+\begin{document}
+\maketitle
+\thispagestyle{plain}
+
+\begin{abstract}
+Predicting author traits on social media is often obstructed by ``data pollution,'' where models rely on specific explicit keywords that relate to the label, rather than stylistic patterns. This paper investigates the efficacy of \textit{word masking} to isolate true stylometric markers. By evaluating Naive Bayes, Logistic Regression, and SVM models on both raw and depolluted Reddit data, we investigate the consequences that this pre-processing step has on the performance of the model, to understand whether indeed it was \textit{cheating}.
+\end{abstract}
+
+\section{Introduction}
+The field of computational sociolinguistics uses computational methods, such as natural language processing, and large datasets to study the complex relationship between language and society, analyzing how social factors influence language use and vice versa, often by analyzing massive amounts of text from social media. Its goal is to infer user attributes (such as gender, personality, or age) from textual data. The application of these methods to social media platforms like Reddit presents an important challenge: \textbf{data pollution}. In these unconstrained environments, machine learning models frequently achieve high accuracy not by learning an author’s trait through his stylistic signature, but by 'cheating', exploiting spurious correlations between specific topics and labels.
+
+The central research question of this paper is to qualitatively and quantitatively investigate the extent to which gender prediction from Reddit posts relies on label-aligned lexical shortcuts as opposed to broader stylometric signals. We first conduct a qualitative analysis to identify explicit sources of data pollution and lexical features strongly associated with author gender, and then evaluate how masking these sources affects the performance of linear classification models. Finally, we assess whether stylometric representations that cannot rely on topical and gender-specific cues retain predictive power in an author-disjoint setting, as measured by accuracy and macro-F1.
+
+To address this, we implement a data depollution pipeline designed to progressively suppress label-aligned lexical signals. We first establish baseline performance using raw, unmodified text. We then apply a masking step that removes explicit gender-related terms and highly salient lexical features identified through the qualitative analysis. Finally, we perform a more aggressive depollution stage using Part-of-Speech (POS) tagging to systematically mask all common nouns and proper nouns, thereby abstracting away topical content. Across these conditions, we compare the performance of baseline linear models (Naive Bayes, Logistic Regression, and SVM) to assess how increasingly restrictive representations impact gender prediction performance.
+
+Our results show that masking gender-related words and topical content leads to a
+drop in performance, which confirms that these cues do play a role in gender
+prediction. However, the models still perform well above chance after
+masking, suggesting that pollution is not too strong, and that writing style also contains useful information beyond explicit lexical shortcuts.
+
+
+\section{Related Work}
+
+Authorship attribution and author profiling have traditionally assumed that writers show stable stylistic patterns that can be captured independently of what they write about. Early work, surveyed by \citet{stamatatos2009survey}, focused on simple features like function words, character n-grams, and basic lexical statistics. These low-level features often outperform more complex syntactic or semantic representations.
+
+However, Stamatatos also points out an important limitation: features thought to reflect style are rarely “pure.” Even function words or character patterns often carry topic or genre information. As a result, models can appear to learn stylistic regularities while actually relying on correlations between language and topic. This problem becomes even more pronounced in social media, where posts are short, informal, and strongly topic-driven.
+
+Several studies have shown that strong performance in author profiling or authorship attribution can reflect topic memorization rather than robust stylistic learning. For example, \citet{sari2018topic} demonstrate that in short texts, topical cues can dominate stylistic signals, leading to high in-domain accuracy that fails to generalize across topics or domains. Similarly, \citet{sundararajan2018what} show that models trained on one topic often underperform when applied to unseen topics. Together, these findings highlight that evaluation setups ignoring topic variation may overestimate a model’s ability to capture stylistic traits.
+
+To address this, researchers have explored text masking and distortion techniques that remove content-bearing information and force models to rely on style. \citet{stamatatos2018masking} propose strategies to mask lexical content, while \citet{halvani2020posnoise} show that removing nouns and other content-heavy tokens can reduce topic dependence without destroying all predictive signal. These approaches are not aimed at maximizing accuracy but at understanding which features models actually use.
+
+Our work builds directly on this perspective. We use masking as a diagnostic tool to study data pollution in Reddit-based gender prediction. By comparing model performance on raw and progressively masked text, we aim to measure how much predictive power comes from topic-aligned lexical shortcuts and how much remains from non-topical stylistic cues.
+
+\section{Data}
+For this research, a dataset of Reddit posts labeled with the gender of the author was used. Reddit
+is an online forum where users write short texts about many different topics,
+often in an informal way. Posts regularly contain slang, abbreviations, and
+personal remarks, which makes the data noisy but realistic.
+
+The dataset contains approximately 44,000 posts. Each post is labeled as either male or female. The two classes are relatively balanced, although the male class is slightly larger in size.
+
+
+\section{Method and Experimental Setup}
+
+The implementation is available on GitHub\footnote{\url{https://github.com/lucazini03/NLP-project}}.”
+
+We compare three models: Multinomial Naive Bayes (baseline), Logistic Regression, and Linear SVM. These models are chosen because of the simplicity, focusing on the difference in performance, rather than the absolute accuracy. Pre-processing involved a custom spaCy pipeline for masking all nouns and proper nouns. Models were evaluated using Macro-F1 and Accuracy to account for class imbalance. We used a GroupShuffleSplit to maintain strict author isolation between sets.
+
+\begin{table}[ht]
+\centering
+\label{tab:dataset_examples}
+\begin{tabular}{lll}
+\hline
+\textbf{Author ID} & \textbf{Post (excerpt)} & \textbf{Label} \\
+\hline
+t2\_rnjzutp & Good on you for being... & 1 \\
+t2\_rnjzutp & must go to the grocery... & 0 \\
+t2\_rnjzutp & things on her videos... & 1 \\
+\hline
+\end{tabular}
+\caption{Example entries from the dataset. Each row represents a social media post annotated with a binary gender label (0 = Male, 1 = Female).}
+\end{table}
+
+\subsection{Data Splitting}
+Since the task focuses on author profiling, it is important to ensure that the
+model does not see text from the same author during both training and testing.
+If this were allowed, performance estimates would be overly optimistic, as the
+model could rely on author-specific writing habits rather than general
+stylometric patterns.
+
+To avoid this issue, we split the data at the author level. This
+ensures that all posts from a given author appear exclusively in either the
+training set or the test set, but never in both. We use a 70/30 split between
+training and test data.
+
+This setup better reflects a realistic application of author profiling, where
+models are expected to generalize to unseen authors rather than memorizing
+individual writing styles.
+
+\subsection{Depollution and Masking Strategy}
+Exploratory analysis revealed that a substantial portion of highly predictive
+features directly encode gender-related information, such as explicit mentions
+of gender, relationships, or family roles. This is particularly true for female posts. To mitigate this form of label-aligned lexical leakage, we apply a controlled masking strategy rather than removing entire samples.
+
+Using a custom spaCy pipeline, explicit gender-related terms identified during
+the exploratory phase are replaced with a placeholder token. This approach
+preserves sentence structure and syntactic patterns while suppressing direct
+lexical shortcuts. In addition, a more aggressive masking condition is included
+in which all nouns and proper nouns are replaced, serving as a stress test to
+evaluate the extent to which models rely on topical content rather than
+stylometric features.
+
+All masking strategies are defined based solely on training data observations
+and are applied consistently to both training and test sets.
+
+\subsection{Quantitative Analysis}
+We evaluate model performance using Accuracy and Macro-F1 on an author-disjoint
+test set. Macro-F1 is included to account for class imbalance and to ensure that
+performance across gender classes is weighted equally. Each model is evaluated under multiple preprocessing conditions, including
+original text and masked variants. This allows for a direct comparison of model
+behavior before and after depollution, while keeping all other components of the
+pipeline fixed.
+
+All evaluation metrics are computed on the same test split. This ensures that observed
+differences in performance can be attributed to the preprocessing strategy
+rather than to changes in data or model configuration.
+
+\subsection{Qualitative Analysis}
+
+To understand \textit{how} models make predictions beyond aggregate metrics, we employ three complementary qualitative methods:
+
+\noindent\textbf{1. Feature Importance Analysis:}  
+We extract feature importance directly from the Logistic Regression model coefficients, which represent the learned weight for each feature in predicting gender. For both the original and masked models, we identify the top-20 features with the highest absolute coefficients.  
+% Features are manually categorized as either \textit{stylometric} (function words, punctuation patterns, discourse markers) or \textit{content-based} (topic-specific nouns, explicit gender terms). This allows us to quantify the shift in model reliance from content to style post-masking.
+
+\noindent\textbf{2. Error Analysis:}  
+We manually examine misclassified examples under each experimental condition (original vs.\ masked) to identify systematic patterns. Specifically, we document whether errors correlate with gender-stereotypical vocabulary and track changes in overall error rates after masking.
+
+\noindent\textbf{3. Case Studies:}  
+We select representative posts where masking changed the prediction outcome and conduct detailed feature-level comparisons. These case studies illustrate how depollution affects model behavior at a fine-grained level.
+
+
+\section{Results}
+
+\subsection{Quantitative Findings}
+
+Table~2 summarizes model performance across the different preprocessing
+conditions. On the original data, all three models achieve relatively high
+Accuracy and Macro-F1 scores, with the Linear SVM performing best overall.
+After masking explicit gender-related terms, performance decreases slightly
+for all models, indicating that these lexical cues contribute to prediction
+accuracy. A further drop is observed under POS-based noun masking, suggesting
+that topical content also plays a role in the task.
+
+Importantly, despite these decreases, all models remain well above chance
+level across masking conditions. This indicates that removing label-aligned
+and topical cues does not eliminate the predictive signal entirely, and that
+non-lexical stylometric features continue to support gender prediction in an
+author-disjoint setting.
+
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llcc}
+\toprule
+\textbf{Model} & \textbf{Setting} & \textbf{Acc.} & \textbf{F1} \\
+\midrule
+MultinomialNB & Original       & 0.8124 & 0.8098 \\
+MultinomialNB & Leak-masked    & 0.8024 & 0.8009 \\
+MultinomialNB & Noun-masked    & 0.7982 & 0.7931 \\
+LogReg        & Original       & 0.8383 & 0.8371 \\
+LogReg        & Leak-masked    & 0.8218 & 0.8207 \\
+LogReg        & Noun-masked    & 0.8066 & 0.8052 \\
+SVM           & Original       & 0.8451 & 0.8440 \\
+SVM           & Leak-masked    & 0.8305 & 0.8294 \\
+SVM           & Noun-masked    & 0.7999 & 0.7986 \\
+\bottomrule
+\end{tabular}
+\caption{Model performance on raw data vs gender related masked data vs POS masked data.}
+\label{tab:model_metrics}
+\end{table}
+
+
+\subsection{Qualitative Findings}
+
+\subsubsection{Feature Importance Shifts}
+
+Table \ref{tab:features} presents the top-10 most influential features identified by model coefficients before and after masking for the Logistic Regression model.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lc|lc}
+\toprule
+\multicolumn{2}{c|}{\textbf{Original Text}} & \multicolumn{2}{c}{\textbf{Masked Text}} \\
+\textbf{Feature} & \textbf{Weight} & \textbf{Feature} & \textbf{Weight} \\
+\midrule
+husband    & +11.696 & lmao        & +6.590 \\
+lmao       & +6.414  & thank       & +5.819 \\
+boyfriend  & +5.386  & feel        & +4.672 \\
+thank      & +5.383  & bc          & +4.460 \\
+baby       & +4.744  & omg         & +4.387 \\
+child      & +4.669  & sorry       & +4.121 \\
+bc         & +4.396  & definitely  & +3.982 \\
+men        & +4.388  & especially  & +3.941 \\
+omg        & +4.341  & married     & +3.876 \\
+feel       & +4.340  & medical     & +3.742 \\
+\bottomrule
+\end{tabular}
+\caption{Top 10 features contributing to female gender prediction.}
+\label{tab:features}
+\end{table}
+
+In the original setting, 7 of the top-10 features were explicit gender-related content words (husband, boyfriend, baby, child, men). Post-masking, the model shifted toward stylometric and discourse markers: affective language (thank, feel, sorry), hedging and intensifiers (definitely, especially), and medical terminology. The shift demonstrates that the model can successfully learn gender-predictive patterns from writing style when explicit gender markers are removed.
+
+\subsubsection{Error Patterns and Case Studies}
+
+To better understand how depollution affects individual predictions, we analyze
+cases where model predictions changed after masking. Overall, predictions flipped
+for approximately 4.5\% of test posts, indicating that explicit gender-related
+content was decisive only for a minority of instances. This suggests that, in
+most cases, models are able to rely on stylometric features alone to make stable
+predictions. When using just stylometric signals (using noun-masking), predictions flipped
+approximately 9.5\% of the time, indicating that removing topical content can
+expose underlying stylistic ambiguity. However, the fact that over 90\% of
+predictions remain stable suggests that stylometric representations retain
+substantial predictive power in this setting.
+
+Posts whose predictions changed typically contained strong gender-aligned lexical
+cues, such as family or relationship terms, in the original text. When these cues
+were masked, the remaining stylistic signal was sometimes insufficient to support
+the original prediction, leading to errors. In other cases, masking removed
+topic-driven biases and allowed stylistic patterns to dominate, resulting in
+corrected predictions.
+
+\paragraph{Example 1: Correct prediction flipped by loss of content cues}
+\begin{quote}
+\small
+\textbf{Original text:} ``My husband and I talked about it and agreed the kids
+shouldn’t be involved anymore.'' \\
+\textbf{True label:} Female \\
+\textbf{Original prediction:} Female (correct, $p=0.781$) \\
+\textbf{Key features:} husband (+0.61), kids (+0.33), talked (+0.18) \\
+\textbf{Masked text:} ``My \texttt{[LEAKAGE]} and I talked about it and agreed the
+kids shouldn’t be involved anymore.'' \\
+\textbf{Masked prediction:} Male (incorrect, $p=0.566$) \\
+\textbf{Key features:} leakage (+0.21), just (–0.07), really (–0.06)
+\end{quote}
+
+In this example, once the gender-aligned terms (e.g. \emph{husband}, \emph{kids}) are removed, the remaining stylistic signal, which is slightly male-leaning, leads to an incorrect prediction.
+
+\paragraph{Example 2: Incorrect prediction corrected after masking}
+\begin{quote}
+\small
+\textbf{Original text:} ``My parents said ‘Don’t come back to visit us if you are
+going to bring her.’ Screw that. I would stop talking to my parents before letting
+them control my life [...]'' \\
+\textbf{True label:} Male \\
+\textbf{Original prediction:} Female (incorrect, $p=0.548$) \\
+\textbf{Key features:} amp\_x200b (–0.26), home (+0.13), covid (+0.13) \\
+\textbf{Masked text:} ``My \texttt{[CONTENT]} said ‘Don’t come back to visit us if
+you are going to bring her.’ Screw that. I would stop talking to my
+\texttt{[CONTENT]} before letting them control my life.'' \\
+\textbf{Masked prediction:} Male (correct, $p=0.557$) \\
+\textbf{Key features:} content (–2.09), amp\_x200b (–0.11)
+\end{quote}
+
+In this case, masking removes topic-driven family vocabulary that biased the model toward a female prediction. Once depolluted, the classifier relies on stylistic cues, resulting in a correct male prediction.
+
+% \subsubsection{Interpretation}
+
+% Overall, the case studies show that stylistic features alone are often sufficient for stable and accurate gender prediction, as most predictions remain unchanged after masking. However, some errors persist due to stereotypical stylistic associations (e.g., profanity correlating with male authorship), which are not removed by content masking. In addition, content words can sometimes compensate for stylistic ambiguity; when these cues are removed, underlying stylistic patterns may surface that correlate with the opposite gender, revealing tension between topic-driven and style-driven signals.
+
+% % Overall, the case studies validate that models can learn gender-predictive patterns from writing style, but also highlight that stylometric features are not bias-free---they reflect stereotypical associations between gender and linguistic patterns that may not hold universally across all authors.
+
+\section{Discussion and Conclusion}
+The results show that gender prediction on Reddit is influenced by explicit, label-aligned lexical cues, but not dominated by them. Masking only gender-related terms leads to a small and consistent performance drop, suggesting that the dataset is not heavily polluted by obvious lexical leakage. More aggressive masking of all nouns further reduces performance by removing topical information, yet models still perform well above chance, indicating the presence of a robust, topic-independent stylistic signal. Qualitative analysis shows that most predictions remain stable after masking, while changes often reflect stereotypical stylistic associations or cases where content words previously compensated for stylistic ambiguity. Together, these findings demonstrate that masking is an effective diagnostic tool for assessing data pollution and for isolating stylistic information in author profiling models.
+
+\bibliography{custom}
+
+\end{document}

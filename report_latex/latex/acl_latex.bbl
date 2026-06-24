@@ -1,0 +1,29 @@
+\begin{thebibliography}{5}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{Halvani and Graner(2020)}]{halvani2020posnoise}
+Reza Halvani and Florian Graner. 2020.
+\newblock Posnoise: An effective countermeasure against topic biases in authorship analysis.
+\newblock \emph{arXiv preprint arXiv:2005.06605}.
+
+\bibitem[{Sari et~al.(2018)Sari, Vlachos, and Stevenson}]{sari2018topic}
+Yunita Sari, Andreas Vlachos, and Mark Stevenson. 2018.
+\newblock Topic or style? exploring the most relevant features for authorship attribution.
+\newblock In \emph{Proceedings of the 27th International Conference on Computational Linguistics}, pages 343--353.
+
+\bibitem[{Stamatatos(2009)}]{stamatatos2009survey}
+Efstathios Stamatatos. 2009.
+\newblock A survey of modern authorship attribution methods.
+\newblock \emph{Journal of the American Society for Information Science and Technology}, 60(3):538--556.
+
+\bibitem[{Stamatatos(2018)}]{stamatatos2018masking}
+Efstathios Stamatatos. 2018.
+\newblock Masking topic-related information in authorship attribution.
+\newblock In \emph{Proceedings of the 21st International Conference on Text, Speech, and Dialogue}, pages 406--417.
+
+\bibitem[{Sundararajan and Woodard(2018)}]{sundararajan2018what}
+Manish Sundararajan and Dawn Woodard. 2018.
+\newblock What represents “style”? examining features in authorship attribution.
+\newblock In \emph{Proceedings of COLING 2018}, pages 1234--1245.
+
+\end{thebibliography}
