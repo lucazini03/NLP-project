@@ -142,6 +142,43 @@ def apply_masking(df: pd.DataFrame, rng: np.random.Generator | None = None) -> p
     return df
 
 
+def apply_masking_in_chunks(df: pd.DataFrame, num_chunks: int = 5, cache_dir: str = ".", rng: np.random.Generator | None = None) -> pd.DataFrame:
+    """Apply masking in chunks and save intermediate results to avoid losing progress.
+    
+    Splits the DataFrame into `num_chunks`, processes them iteratively, and saves 
+    each chunk. If a chunk already exists in `cache_dir`, it is loaded from disk.
+    """
+    import os
+    import pickle
+    import numpy as np
+    
+    if rng is None:
+        rng = get_rng()
+        
+    os.makedirs(cache_dir, exist_ok=True)
+    chunks = np.array_split(df, num_chunks)
+    processed_chunks = []
+    
+    for i, chunk in enumerate(chunks):
+        chunk_file = os.path.join(cache_dir, f"masked_chunk_{i}.pkl")
+        if os.path.exists(chunk_file):
+            logger.info(f"Loading chunk {i+1}/{num_chunks} from {chunk_file}...")
+            print(f"Loading chunk {i+1}/{num_chunks} from {chunk_file}...")
+            with open(chunk_file, "rb") as f:
+                processed_chunk = pickle.load(f)
+        else:
+            logger.info(f"Processing chunk {i+1}/{num_chunks}...")
+            print(f"Processing chunk {i+1}/{num_chunks}...")
+            processed_chunk = apply_masking(chunk.copy(), rng=rng)
+            with open(chunk_file, "wb") as f:
+                pickle.dump(processed_chunk, f)
+            print(f"Saved chunk {i+1}/{num_chunks} to {chunk_file}")
+            
+        processed_chunks.append(processed_chunk)
+        
+    return pd.concat(processed_chunks, ignore_index=False)
+
+
 # ───────────── Masking statistics (Sparsity) ──────────────────
 
 def compute_masking_stats(df: pd.DataFrame) -> pd.DataFrame:
