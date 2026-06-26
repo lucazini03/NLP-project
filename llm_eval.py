@@ -95,8 +95,18 @@ class GeminiProvider(LLMProvider):
     def __init__(self, model_id: str = "gemini-1.5-flash"):
         import google.generativeai as genai  # type: ignore
         self.model_id = model_id
-        self._model = genai.GenerativeModel(model_id)
         self._genai = genai
+        # Set safety thresholds to BLOCK_NONE for research classification
+        self._safety_settings = [
+            {"category": c, "threshold": "BLOCK_NONE"}
+            for c in [
+                "HARM_CATEGORY_HARASSMENT",
+                "HARM_CATEGORY_HATE_SPEECH",
+                "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "HARM_CATEGORY_DANGEROUS_CONTENT",
+            ]
+        ]
+        self._model = genai.GenerativeModel(model_id)
 
     def _call_api(self, prompt_text: str) -> str:
         response = self._model.generate_content(
@@ -105,8 +115,25 @@ class GeminiProvider(LLMProvider):
                 temperature=LLM_TEMPERATURE,
                 max_output_tokens=10,
             ),
+            safety_settings=self._safety_settings,
         )
-        return response.text.strip()
+        # Handle blocked responses (finish_reason == SAFETY or no candidates)
+        try:
+            if (
+                not response.candidates
+                or not response.candidates[0].content.parts
+            ):
+                logger.warning(
+                    "Gemini returned no content (likely safety-blocked). "
+                    "finish_reason=%s",
+                    getattr(response.candidates[0], "finish_reason", "unknown")
+                    if response.candidates else "no_candidates",
+                )
+                return ""
+            return response.text.strip()
+        except (ValueError, IndexError, AttributeError) as e:
+            logger.warning("Failed to extract Gemini response: %s", e)
+            return ""
 
 
 class OpenAIProvider(LLMProvider):
