@@ -532,7 +532,7 @@ def run_transformer_fold(
 
         training_args = TrainingArguments(
             output_dir=output_dir,
-            evaluation_strategy="no",
+            eval_strategy="no",
             save_strategy="epoch",
             learning_rate=lr,
             per_device_train_batch_size=batch_size,
