@@ -467,6 +467,7 @@ def run_transformer_fold(
     from transformers import (
         AutoTokenizer,
         AutoModelForSequenceClassification,
+        DataCollatorWithPadding,
         Trainer,
         TrainingArguments,
         EarlyStoppingCallback,
@@ -510,7 +511,6 @@ def run_transformer_fold(
         def _tok(examples):
             return tokenizer(
                 examples["text"],
-                padding="max_length",
                 truncation=True,
                 max_length=max_length,
             )
@@ -553,13 +553,17 @@ def run_transformer_fold(
             metric_for_best_model="eval_loss",
             greater_is_better=False,
             save_total_limit=2,
+            fp16=torch.cuda.is_available(),
         )
+
+        data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
         trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=_actual_train_ds,
             eval_dataset=_val_ds,
+            data_collator=data_collator,
             compute_metrics=_compute_metrics,
             callbacks=[EarlyStoppingCallback(
                 early_stopping_patience=early_stopping_patience,
