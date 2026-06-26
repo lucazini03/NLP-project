@@ -452,9 +452,10 @@ def run_transformer_fold(
     fold_i: int,
     model_name: str = "answerdotai/ModernBERT-base",
     max_length: int = 256,
-    epochs: int = 3,
+    epochs: int = 2,
     batch_size: int = 16,
     lr: float = 2e-5,
+    early_stopping_patience: int = 1,
 ) -> dict:
     """Train & evaluate a transformer on all 4×4 conditions for one fold.
 
@@ -468,6 +469,7 @@ def run_transformer_fold(
         AutoModelForSequenceClassification,
         Trainer,
         TrainingArguments,
+        EarlyStoppingCallback,
     )
 
     _ensure_dirs()
@@ -517,6 +519,11 @@ def run_transformer_fold(
         _train_ds = _train_ds.rename_column("label", "labels")
         _train_ds.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
 
+        # Split 90/10 for early stopping validation
+        split = _train_ds.train_test_split(test_size=0.1, seed=RANDOM_STATE)
+        _actual_train_ds = split["train"]
+        _val_ds = split["test"]
+
         # Fresh model per train condition
         model = AutoModelForSequenceClassification.from_pretrained(
             model_name,
@@ -532,7 +539,7 @@ def run_transformer_fold(
 
         training_args = TrainingArguments(
             output_dir=output_dir,
-            eval_strategy="no",
+            eval_strategy="epoch",
             save_strategy="epoch",
             learning_rate=lr,
             per_device_train_batch_size=batch_size,
@@ -542,14 +549,21 @@ def run_transformer_fold(
             seed=RANDOM_STATE,
             logging_steps=100,
             report_to="none",
-            load_best_model_at_end=False,
+            load_best_model_at_end=True,
+            metric_for_best_model="eval_loss",
+            greater_is_better=False,
+            save_total_limit=2,
         )
 
         trainer = Trainer(
             model=model,
             args=training_args,
-            train_dataset=_train_ds,
+            train_dataset=_actual_train_ds,
+            eval_dataset=_val_ds,
             compute_metrics=_compute_metrics,
+            callbacks=[EarlyStoppingCallback(
+                early_stopping_patience=early_stopping_patience,
+            )],
         )
 
         print(f"    Training on {train_cond}...")
