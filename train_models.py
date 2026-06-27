@@ -540,13 +540,30 @@ def run_transformer_fold(
 
         # Fresh model per train condition (or load existing if present)
         if has_checkpoint:
-            print(f"    ✓ Found existing trained model in {output_dir}. Loading instead of training...")
-            model = AutoModelForSequenceClassification.from_pretrained(
-                output_dir,
-                num_labels=num_labels,
-                label2id=label2id,
-                id2label=id2label,
-            )
+            try:
+                print(f"    ✓ Found existing trained model in {output_dir}. Loading instead of training...")
+                # Load architecture config from hub (has model_type), apply to local weights
+                from transformers import AutoConfig
+                base_config = AutoConfig.from_pretrained(
+                    model_name,
+                    num_labels=num_labels,
+                    label2id=label2id,
+                    id2label=id2label,
+                )
+                model = AutoModelForSequenceClassification.from_pretrained(
+                    output_dir,
+                    config=base_config,
+                    ignore_mismatched_sizes=True,
+                )
+            except Exception as e:
+                print(f"    ⚠ Could not load checkpoint ({e}). Will retrain from scratch.")
+                has_checkpoint = False
+                model = AutoModelForSequenceClassification.from_pretrained(
+                    model_name,
+                    num_labels=num_labels,
+                    label2id=label2id,
+                    id2label=id2label,
+                )
         else:
             model = AutoModelForSequenceClassification.from_pretrained(
                 model_name,
