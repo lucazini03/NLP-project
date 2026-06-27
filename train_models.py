@@ -532,17 +532,26 @@ def run_transformer_fold(
 
         # Check if the model has already been trained and saved in output_dir
         has_checkpoint = False
+        model_load_path = output_dir
+
         if os.path.exists(output_dir):
-            # Check for standard model file names or checkpoints
             files = os.listdir(output_dir)
-            if any(f in files for f in ["model.safetensors", "pytorch_model.bin"]) or any(d.startswith("checkpoint-") for d in files):
+            # Check for direct files first
+            if any(f in files for f in ["model.safetensors", "pytorch_model.bin"]):
                 has_checkpoint = True
+                model_load_path = output_dir
+            else:
+                # Look for checkpoint folders and pick the most recent one
+                checkpoints = [d for d in files if d.startswith("checkpoint-")]
+                if checkpoints:
+                    checkpoints.sort(key=lambda x: int(x.split("-")[1]))
+                    model_load_path = os.path.join(output_dir, checkpoints[-1])
+                    has_checkpoint = True
 
         # Fresh model per train condition (or load existing if present)
         if has_checkpoint:
             try:
-                print(f"    ✓ Found existing trained model in {output_dir}. Loading instead of training...")
-                # Load architecture config from hub (has model_type), apply to local weights
+                print(f"    ✓ Found existing trained model in {model_load_path}. Loading instead of training...")
                 from transformers import AutoConfig
                 base_config = AutoConfig.from_pretrained(
                     model_name,
@@ -551,7 +560,7 @@ def run_transformer_fold(
                     id2label=id2label,
                 )
                 model = AutoModelForSequenceClassification.from_pretrained(
-                    output_dir,
+                    model_load_path,
                     config=base_config,
                     ignore_mismatched_sizes=True,
                 )
@@ -608,7 +617,7 @@ def run_transformer_fold(
         if not has_checkpoint:
             print(f"    Training on {train_cond}...")
             trainer.train()
-            # Save the final best model directly to the root of output_dir for clean loading next time
+            # Save directly to output_dir root for clean loading next time
             trainer.save_model(output_dir)
         else:
             print(f"    Skipping training on {train_cond} (using loaded model).")
