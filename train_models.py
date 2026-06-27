@@ -524,18 +524,35 @@ def run_transformer_fold(
         _actual_train_ds = split["train"]
         _val_ds = split["test"]
 
-        # Fresh model per train condition
-        model = AutoModelForSequenceClassification.from_pretrained(
-            model_name,
-            num_labels=num_labels,
-            label2id=label2id,
-            id2label=id2label,
-        )
-
         output_dir = os.path.join(
             MODELS_DIR,
             f"transformer_fold{fold_i}_{train_cond}",
         )
+
+        # Check if the model has already been trained and saved in output_dir
+        has_checkpoint = False
+        if os.path.exists(output_dir):
+            # Check for standard model file names or checkpoints
+            files = os.listdir(output_dir)
+            if any(f in files for f in ["model.safetensors", "pytorch_model.bin"]) or any(d.startswith("checkpoint-") for d in files):
+                has_checkpoint = True
+
+        # Fresh model per train condition (or load existing if present)
+        if has_checkpoint:
+            print(f"    ✓ Found existing trained model in {output_dir}. Loading instead of training...")
+            model = AutoModelForSequenceClassification.from_pretrained(
+                output_dir,
+                num_labels=num_labels,
+                label2id=label2id,
+                id2label=id2label,
+            )
+        else:
+            model = AutoModelForSequenceClassification.from_pretrained(
+                model_name,
+                num_labels=num_labels,
+                label2id=label2id,
+                id2label=id2label,
+            )
 
         training_args = TrainingArguments(
             output_dir=output_dir,
@@ -570,8 +587,13 @@ def run_transformer_fold(
             )],
         )
 
-        print(f"    Training on {train_cond}...")
-        trainer.train()
+        if not has_checkpoint:
+            print(f"    Training on {train_cond}...")
+            trainer.train()
+            # Save the final best model directly to the root of output_dir for clean loading next time
+            trainer.save_model(output_dir)
+        else:
+            print(f"    Skipping training on {train_cond} (using loaded model).")
 
         results[train_cond] = {}
 
