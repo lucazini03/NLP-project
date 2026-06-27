@@ -27,9 +27,10 @@ from sklearn.svm import LinearSVC
 from sklearn.dummy import DummyClassifier
 from sklearn.metrics import accuracy_score, f1_score
 
+import config
 from config import (
     RANDOM_STATE, N_FOLDS, TEXT_CONDITIONS, TEXT_COLUMNS,
-    MODELS_DIR, RESULTS_DIR, get_rng,
+    get_rng,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,8 +38,8 @@ logger = logging.getLogger(__name__)
 # ─────────────────── Helpers ──────────────────────────────────
 
 def _ensure_dirs():
-    os.makedirs(MODELS_DIR, exist_ok=True)
-    os.makedirs(RESULTS_DIR, exist_ok=True)
+    os.makedirs(config.MODELS_DIR, exist_ok=True)
+    os.makedirs(config.RESULTS_DIR, exist_ok=True)
 
 
 def _make_tfidf_pipeline(clf) -> Pipeline:
@@ -177,7 +178,7 @@ def _train_and_evaluate_fold(
             # Optionally save the trained pipeline
             if save_models:
                 model_path = os.path.join(
-                    MODELS_DIR,
+                    config.MODELS_DIR,
                     f"fold{fold_i}_{model_name}_{train_cond}.pkl",
                 )
                 with open(model_path, "wb") as f:
@@ -220,7 +221,7 @@ def run_cross_validation(
     folds : list[dict]
         Output of prepare_data.generate_folds().
     save_models : bool
-        Whether to pickle models to MODELS_DIR.
+        Whether to pickle models to config.MODELS_DIR.
 
     Returns
     -------
@@ -357,12 +358,12 @@ def run_cross_validation(
 
     # ── Save everything ──
     summary_df.to_csv(
-        os.path.join(RESULTS_DIR, "cv_summary.csv"), index=False
+        os.path.join(config.RESULTS_DIR, "cv_summary.csv"), index=False
     )
     flip_df.to_csv(
-        os.path.join(RESULTS_DIR, "flip_rates.csv"), index=False
+        os.path.join(config.RESULTS_DIR, "flip_rates.csv"), index=False
     )
-    with open(os.path.join(RESULTS_DIR, "significance_tests.json"), "w") as f:
+    with open(os.path.join(config.RESULTS_DIR, "significance_tests.json"), "w") as f:
         json.dump(sig_results, f, indent=2)
 
     # ── Pretty-print ──
@@ -525,7 +526,7 @@ def run_transformer_fold(
         _val_ds = split["test"]
 
         output_dir = os.path.join(
-            MODELS_DIR,
+            config.MODELS_DIR,
             f"transformer_fold{fold_i}_{train_cond}",
         )
 
@@ -733,12 +734,12 @@ def run_transformer_cv(
 
     # Save
     summary_df.to_csv(
-        os.path.join(RESULTS_DIR, f"cv_summary_{short_name}.csv"), index=False
+        os.path.join(config.RESULTS_DIR, f"cv_summary_{short_name}.csv"), index=False
     )
     flip_df.to_csv(
-        os.path.join(RESULTS_DIR, f"flip_rates_{short_name}.csv"), index=False
+        os.path.join(config.RESULTS_DIR, f"flip_rates_{short_name}.csv"), index=False
     )
-    with open(os.path.join(RESULTS_DIR, f"significance_{short_name}.json"), "w") as f:
+    with open(os.path.join(config.RESULTS_DIR, f"significance_{short_name}.json"), "w") as f:
         json.dump(sig_results, f, indent=2)
 
     _print_summary(summary_df, flip_df, {short_name: sig_results},
